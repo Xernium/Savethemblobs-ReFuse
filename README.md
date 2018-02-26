@@ -1,8 +1,9 @@
 # savethemblobs
 
-A simple script to grab all SHSH blobs from Apple that it's currently signing to save them locally and on Cydia server.
+A simple script to grab all SHSH blobs from Apple that it's currently signing to save them locally (and on Cydia server- 32 BIT ONLY).
+### CAUTION! This tool doesn't work for saving 64-Bit Device APTICKETS!
 
-And now also grabs blobs already cached on Cydia servers to save them locally.
+This tool can crawl blobs already cached on Cydia servers or 1Conan's TSSSaver to save them locally.
 
 Will automatically work with future firmwares!
 
@@ -30,6 +31,8 @@ Will automatically work with future firmwares!
 	  --overwrite-apple    overwrite any existing blobs (only from Apple)
 	  --overwrite-cydia    overwrite any existing blobs (only from Cydia)
 	  --no-submit-cydia    don't submit blobs to Cydia server
+	  --tsssaver-blobs     fetch shsh2 from 1Conan's TSSSaver
+                               (http://TSSSaver.1Conan.com)
 	  --cydia-blobs        fetch blobs from Cydia server (32 bit devices only)
 
 
