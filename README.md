@@ -1,28 +1,27 @@
-# savethemblobs
+# Savethemblobs-ReFuse'd
 
-A simple script to grab all SHSH blobs from Apple that it's currently signing to save them locally (and on Cydia server- 32 BIT ONLY).
-### CAUTION! This tool doesn't work for saving 64-Bit Device APTICKETS!
+A *rather* simple script to grab all SHSH blobs from Apple that it's currently signing to save them locally.
 
-This tool can crawl blobs already cached on Cydia servers or 1Conan's TSSSaver to save them locally.
+### CAUTION! This tool doesn't work for saving 64-Bit Device APTICKETS! (Yet)
 
-Will automatically work with future firmwares!
+This tool can crawl blobs already cached on Cydia's Servers or 1Conan's TSSSaver to save them locally.
+
+Should automatically work with future firmwares!
 
 ## Dependencies
 
 	Depends on Python 2.7 pip, requests and six. 
-	With pip installed, run:
-		pip install -r requirements.txt
+	With pip installed, run installdependencies.sh
 
 ## Usage
 
-	savethemblobs.py [-h] [--save-dir SAVE_DIR] [--overwrite]
-	                 [--overwrite-apple] [--overwrite-cydia]
-	                 [--no-submit-cydia] [--cydia-blobs]
-	                 ecid device
+	Savethemblobs-ReFuse'd
 
 	positional arguments:
-	  ecid                 device ECID in int or hex (prefix hex with 0x)
-	  device               device identifier/boardconfig (eg. iPhone3,1/n90ap)
+	  ecid                 device ECID (found with iTunes or ideviceinfo)
+	  device               device identifier (found with iTunes or ideviceinfo eg. iPhone3,1)
+	  version	       [Optional] Specify the version to save shsh/shsh2 from. Default is 'latest'
+			       but you can also specify a certain version (eg. 10.3.3) or 'all'	to force query all available versions
 
 	optional arguments:
 	  -h, --help           show this help message and exit

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# savethemblobs.py
+# Savethemblobs-ReFused.py
 #   A simple script to grab all SHSH blobs from Apple that it's currently signing to save them locally and on Cydia server.
 #   And now also grabs blobs already cached on Cydia servers to save them locally.
 #
@@ -9,6 +9,7 @@
 #       deprecated and obsolete APIs removed
 #   Upgraded/Updated 2018
 #       New TSS-Saving Solution crawler by /u/1Conan
+#       Completely reworking the entire thing :P
 #
 # examples:
 #   savethemblobs.py 1050808663311 iPhone3,1
