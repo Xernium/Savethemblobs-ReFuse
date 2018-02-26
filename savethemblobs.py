@@ -143,9 +143,10 @@ def parse_tss_response(response):
     return ret
 
 def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('ecid', help='device ECID in int or hex (prefix hex with 0x)')
-    parser.add_argument('device', help='device identifier/boardconfig (eg. iPhone3,1/n90ap)')
+    parser = argparse.ArgumentParser(description='Savethemblobs-ReFuse')
+    parser.add_argument('ecid', help='device ECID')
+    parser.add_argument('device', help='device identifier (eg. iPhone3,1)')
+    parser.add_argument('version', nargs='?', help='Specify a certain version to request or use "latest" / "all" to request the latest version or all available versions for the Device (eg. 10.3.3)', default='latest')
     parser.add_argument('--save-dir', help='local dir for saving blobs (default: ~/.shsh)', default=os.path.join(os.path.expanduser('~'), '.shsh'))
     parser.add_argument('--overwrite', help='overwrite any existing blobs', action='store_true')
     parser.add_argument('--overwrite-apple', help='overwrite any existing blobs (only from Apple)', action='store_true')
@@ -185,7 +186,6 @@ def main(passedArgs = None):
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir)
 
-    print('Fetching firmwares Apple is currently signing for %s' % (args.device))
     d = firmwares_being_signed(args.device)
     if not d:
         print('ERROR: No firmwares found! Invalid device.')
@@ -195,27 +195,60 @@ def main(passedArgs = None):
     model = (args.device)
     cpid = d['cpid']
     bdid = d['bdid']
-    for f in d['firmwares']:
-        if f['signed']:
-            save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, f['version'], f['buildid']))
+    if args.version == 'latest' or args.version == 'all':
+        print('Fetching %s firmwares for %s' % (args.version, args.device))
+        for f in d['firmwares']:
+            if f['signed'] or args.version == 'all':
+                save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, f['version'], f['buildid']))
 
-            if not os.path.exists(save_path) or args.overwrite_apple or args.overwrite:
-                print('Requesting blobs from Apple for %s/%s' % (model, f['buildid']))
-                r = request_blobs_from_apple(board, f['buildid'], ecid, cpid, bdid)
+                if not os.path.exists(save_path) or args.overwrite_apple or args.overwrite:
+                    print('Requesting blobs from Apple for %s/%s' % (model, f['buildid']))
+                    r = request_blobs_from_apple(board, f['buildid'], ecid, cpid, bdid)
 
-                if r['MESSAGE'] == 'SUCCESS':
-                    print('Fresh blobs saved to %s' % (save_path))
-                    write_to_file(save_path, r['REQUEST_STRING'])
+                    if r['MESSAGE'] == 'SUCCESS':
+                        print('Fresh blobs saved to %s' % (save_path))
+                        write_to_file(save_path, r['REQUEST_STRING'])
 
-                    if not submitcydia:
-                        print('Submitting blobs to Cydia server')
-                        submit_blobs_to_cydia(cpid, bdid, ecid, r['REQUEST_STRING'])
+                        if not submitcydia:
+                            print('Submitting blobs to Cydia server')
+                            submit_blobs_to_cydia(cpid, bdid, ecid, r['REQUEST_STRING'])
+
+                    else:
+                        if 'This device isn' in r['MESSAGE']:
+                            print('Failed: That version isn\'t signed!')
+                        else:
+                            print('Error receiving blobs: %s [%s]' % (r['MESSAGE'], r['STATUS']))
 
                 else:
-                    print('Error receiving blobs: %s [%s]' % (r['MESSAGE'], r['STATUS']))
+                    print('Blobs already exist at %s' % (save_path))
+    else:
+        checkbit = False
+        for f in d['firmwares']:
+            if f['version'] == args.version:
+                checkbit = True
+                print('Requesting blobs from Apple for %s/%s-%s' % (model, args.version, f['buildid']))
+                save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, f['version'], f['buildid']))
+                if not os.path.exists(save_path) or args.overwrite_apple or args.overwrite:
+                    r = request_blobs_from_apple(board, f['buildid'], ecid, cpid, bdid)
+                    if r['MESSAGE'] == 'SUCCESS':
+                        print('Fresh blobs saved to %s' % (save_path))
+                        write_to_file(save_path, r['REQUEST_STRING'])
 
-            else:
-                print('Blobs already exist at %s' % (save_path))
+                        if not submitcydia:
+                            print('Submitting blobs to Cydia server')
+                            submit_blobs_to_cydia(cpid, bdid, ecid, r['REQUEST_STRING'])
+
+                    else:
+                        if 'This device isn' in r['MESSAGE']:
+                            print('Failed: That version isn\'t signed!')
+                        else:
+                            print('Error receiving blobs: %s [%s]' % (r['MESSAGE'], r['STATUS']))
+
+                else:
+                    print('Blobs already exist at %s' % (save_path))
+        if not checkbit:
+            print('The device %s doesn\'t have a version %s!' % (args.device, args.version))
+
 
     if args.tsssaver_blobs:
         print('Fetching /u/1Conans TSS-SHSH2-Saver for %s with ECID %s' % (model, ecid))
@@ -226,6 +259,8 @@ def main(passedArgs = None):
                 tmp1 = f['version'][:1]
             if float(tmp1) >= 10.0:
                 save_tsssaver(ecid, model, board, f['version'], f['buildid'], args.save_dir, args.overwrite)
+    else:
+        print('Skipped fetching blobs from /u/1Conan\'s TSSSaver')
 
     if args.cydia_blobs:
         print('Fetching blobs available on Cydia server')
