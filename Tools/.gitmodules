@@ -1,3 +1,3 @@
 [submodule "MobileDevice"]
-	path = Tools/MobileDevice
+	path = MobileDevice
 	url = https://github.com/mountainstorm/MobileDevice.git

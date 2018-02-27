@@ -33,6 +33,7 @@ Should automatically work with future firmwares!
 	  --tsssaver-blobs     fetch shsh2 from 1Conan's TSSSaver
                                (http://TSSSaver.1Conan.com)
 	  --cydia-blobs        fetch blobs from Cydia server (32 bit devices only)
+	  -f, --full-run       Query all available Servers for ALL known versions	
 
 
 ## License
