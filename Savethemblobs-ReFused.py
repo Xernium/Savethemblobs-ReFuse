@@ -57,22 +57,35 @@ def tss_request_manifest(board, build, ecid, cpid=None, bdid=None):
     r = requests.get(url, headers={'User-Agent': USER_AGENT})
     return r.text.replace('<string>$ECID$</string>', '<integer>%s</integer>' % (ecid))
 
-def request_blobs_from_apple(board, build, ecid, cpid=None, bdid=None):
-    #url = 'http://localhost:8080/'
+def request_blobs_from_apple(verbose_level, board, build, ecid, cpid=None, bdid=None):
+    d = tss_request_manifest(board, build, ecid, cpid, bdid)
+    if verbose_level>3:
+        print(d)
     url = 'http://gs.apple.com/TSS/controller?action=2'
-    r = requests.post(url, headers={'User-Agent': 'InetURL/1.0', 'Accept-Encoding': '*/*', 'Content-type': 'text/xml; charset="utf-8"'}, data=tss_request_manifest(board, build, ecid, cpid, bdid))
+    r = requests.post(url, headers={'User-Agent': 'InetURL/1.0', 'Accept-Encoding': '*/*', 'Content-type': 'text/xml; charset="utf-8"'}, data=d)
     if not r.status_code == requests.codes.ok:
         return { 'MESSAGE': 'TSS HTTP STATUS:', 'STATUS': r.status_code }
+    if verbose_level>=1:
+        print('MESSAGE: TSS HTTP STATUS: %s' % (r.status_code ))
+    if verbose_level>=2:
+        print(r.text)
     return parse_tss_response(r.text)
 
-def request_blobs_from_cydia(board, build, ecid, cpid=None, bdid=None):
+def request_blobs_from_cydia(verbose_level, board, build, ecid, cpid=None, bdid=None):
+    d = tss_request_manifest(board, build, ecid, cpid, bdid)
+    if verbose_level>3:
+        print(d)
     url = 'http://cydia.saurik.com/TSS/controller?action=2'
-    r = requests.post(url, headers={'User-Agent': USER_AGENT}, data=tss_request_manifest(board, build, ecid, cpid, bdid))
+    r = requests.post(url, headers={'User-Agent': USER_AGENT}, data=d)
     if not r.status_code == requests.codes.ok:
         return { 'MESSAGE': 'TSS HTTP STATUS:', 'STATUS': r.status_code }
+    if verbose_level>=1:
+        print('MESSAGE: TSS HTTP STATUS: %s' % (r.status_code ))
+    if verbose_level>2:
+        print(r.text)
     return parse_tss_response(r.text)
 
-def save_tsssaver(ecid, model, boardconfig, version, buildid, savedir, overwrite):
+def save_tsssaver(ecid, model, boardconfig, version, buildid, savedir, overwrite, verbose_level):
     url = 'https://stor.1conan.com/tsssaver/shsh/'
     # Pre 10.2
     f_path_arg = [
@@ -92,7 +105,13 @@ def save_tsssaver(ecid, model, boardconfig, version, buildid, savedir, overwrite
             filename = ('%s-%s-%s-%s_%s.shsh2' % (ecid, model, version, buildid, f_path_arg[c]))
             save_path = os.path.join(savedir, filename)
             req_url = ('%s%s/%s/%s/%s_%s_%s-%s.shsh2' % (url, ecid, version, f_path_arg[c], ecid, model, version, buildid))
-            r = requests.get(req_url, headers={'User-Agent': 'savethemblobs/2.1'} )
+            r = requests.get(req_url, headers={'User-Agent': __version__} )
+            if verbose_level >= 1:
+                print('TSSSaver: Pre 10.2.1 Version: %s' %(version))
+                print('Request URL: %s' % (req_url))
+                print('Got status code: %s' % (r.status_code))
+            if verbose_level>2:
+                print(r.text)
             if r.status_code == requests.codes.ok:
                 if not (os.path.exists(save_path)) or overwrite:
                     write_to_file(save_path, (r.text))
@@ -102,7 +121,13 @@ def save_tsssaver(ecid, model, boardconfig, version, buildid, savedir, overwrite
     else:
         # Post 10.2.1: Now we are in for a real treat...
         dir_listing_url = ('%s%s/%s/noapnonce' % (url, ecid, version))
-        dir_r = requests.get(dir_listing_url, headers={'User-Agent': 'savethemblobs/2.1'} )
+        dir_r = requests.get(dir_listing_url, headers={'User-Agent': __version__} )
+        if verbose_level >= 1:
+            print('TSSSaver: Post 10.2 Version: %s' %(version))
+            print('Listing URL: %s' % (dir_listing_url))
+            print('Got status code: %s' % (dir_r.status_code))
+        if verbose_level>3:
+            print(dir_r.text)
         if dir_r.status_code == requests.codes.ok:
             listing = dir_r.text
             search_str = ('<a href="%s_%s_%s_%s-%s_' % (ecid, model, boardconfig, version, buildid))
@@ -126,6 +151,12 @@ def save_tsssaver(ecid, model, boardconfig, version, buildid, savedir, overwrite
                         save_path = os.path.join(savedir, filename)
                         req_url = ('%s%s/%s/noapnonce/%s_%s_%s_%s-%s_%s.shsh2' % (url, ecid, version, ecid, model, boardconfig, version, buildid, nonce))
                         r = requests.get(req_url, headers={'User-Agent': 'savethemblobs/2.1'} )
+                        if verbose_level >= 1:
+                            print('Acquired NONCE: %s' % (nonce))
+                            print('Request URL: %s ' % (req_url))
+                            print('Got status code: %s' % (r.status_code))
+                        if verbose_level>2:
+                            print(r.text)
                         if r.status_code == requests.codes.ok:
                             if not (os.path.exists(save_path)) or overwrite:
                                 write_to_file(save_path, (r.text))
@@ -152,18 +183,17 @@ def parse_tss_response(response):
     return ret
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Savethemblobs-ReFuse')
+    parser = argparse.ArgumentParser(description='Savethemblobs-ReFuse\'d')
     parser.add_argument('ecid', help='device ECID')
     parser.add_argument('device', help='device identifier (eg. iPhone3,1)')
     parser.add_argument('version', nargs='?', help='Specify a certain version to request or use "latest" / "all" to request the latest version or all available versions for the Device (eg. 10.3.3)', default='latest')
     parser.add_argument('--save-dir', help='local dir for saving blobs (default: ~/.shsh)', default=os.path.join(os.path.expanduser('~'), '.shsh'))
     parser.add_argument('--overwrite', help='overwrite any existing blobs', action='store_true')
-    parser.add_argument('--overwrite-apple', help='overwrite any existing blobs (only from Apple)', action='store_true')
-    parser.add_argument('--overwrite-cydia', help='overwrite any existing blobs (only from Cydia)', action='store_true')
     parser.add_argument('--no-submit-cydia', help='don\'t submit blobs to Cydia server', action='store_true')
     parser.add_argument('--tsssaver-blobs', help='fetch shsh2 from 1Conan\'s TSSSaver (http://TSSSaver.1Conan.com)', action='store_true')
     parser.add_argument('--cydia-blobs', help='fetch blobs from Cydia server (32 bit devices only)', action='store_true')
     parser.add_argument('--full-run', '-f', help='Query all available Servers for ALL known versions', action='store_true')
+    parser.add_argument('--verbose', '-v', help='Print additional info, use twice to enable network logging for Apple TSS, use three times to log responses too (Warning SPAM!), and to log EVERYTHING repeat 4 times', action='count')
     return parser.parse_args()
 
 def main(passedArgs = None):
@@ -218,9 +248,9 @@ def main(passedArgs = None):
                 if f['signed'] or args.version == 'all' or args.full_run:
                     save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, f['version'], f['buildid']))
 
-                    if not os.path.exists(save_path) or args.overwrite_apple or args.overwrite:
+                    if not os.path.exists(save_path) or args.overwrite:
                         print('Requesting blobs from Apple for %s/%s' % (model, f['buildid']))
-                        r = request_blobs_from_apple(board, f['buildid'], ecid, cpid, bdid)
+                        r = request_blobs_from_apple(args.verbose, board, f['buildid'], ecid, cpid, bdid)
 
                         if r['MESSAGE'] == 'SUCCESS':
                             print('Fresh blobs saved to %s' % (save_path))
@@ -245,8 +275,8 @@ def main(passedArgs = None):
                     checkbit = True
                     print('Requesting blobs from Apple for %s/%s-%s' % (model, args.version, f['buildid']))
                     save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, f['version'], f['buildid']))
-                    if not os.path.exists(save_path) or args.overwrite_apple or args.overwrite:
-                        r = request_blobs_from_apple(board, f['buildid'], ecid, cpid, bdid)
+                    if not os.path.exists(save_path) or args.overwrite:
+                        r = request_blobs_from_apple(args.verbose, board, f['buildid'], ecid, cpid, bdid)
                         if r['MESSAGE'] == 'SUCCESS':
                             print('Fresh blobs saved to %s' % (save_path))
                             write_to_file(save_path, r['REQUEST_STRING'])
@@ -256,7 +286,7 @@ def main(passedArgs = None):
                                 submit_blobs_to_cydia(cpid, bdid, ecid, r['REQUEST_STRING'])
 
                         else:
-                            if 'This device isn' in r['MESSAGE']:
+                            if 'This device isn' in r['MESSAGE'] and args.verbose<=0:
                                 print('Failed: That version isn\'t signed!')
                             else:
                                 print('Error receiving blobs: %s [%s]' % (r['MESSAGE'], r['STATUS']))
@@ -277,7 +307,9 @@ def main(passedArgs = None):
             if '.' in tmp1:
                 tmp1 = f['version'][:1]
             if float(tmp1) >= 10.0:
-                save_tsssaver(ecid, model, board, f['version'], f['buildid'], args.save_dir, args.overwrite)
+                if args.verbose >= 1:
+                    print('Querying TSS-SAVER for %s with ECID %s Version %s' % (model, ecid, f['version']))
+                save_tsssaver(ecid, model, board, f['version'], f['buildid'], args.save_dir, args.overwrite, args.verbose)
     else:
         print('Skipped fetching blobs from /u/1Conan\'s TSSSaver')
 
@@ -295,16 +327,18 @@ def main(passedArgs = None):
             for b in device['firmwares']:
                 save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, b['version'], b['build']))
 
-                if not os.path.exists(save_path) or args.overwrite_cydia or args.overwrite:
-                    #print 'Requesting blobs from Cydia for %s/%s' % (model, b['build'])
-                    r = request_blobs_from_cydia(board, b['build'], ecid, cpid, bdid)
+                if not os.path.exists(save_path) or args.overwrite:
+                    if args.verbose >= 1:
+                        print ('Requesting blobs from Cydia for %s/%s' % (model, b['build']))
+                    r = request_blobs_from_cydia(args.verbose, board, b['build'], ecid, cpid, bdid)
 
                     if r['MESSAGE'] == 'SUCCESS':
                         print('Cydia blobs saved to %s' % (save_path))
                         write_to_file(save_path, r['REQUEST_STRING'])
 
-                    #else:
-                        #print 'No blobs found for %s' % (b['build'])
+                    else:
+                        if args.verbose >= 1:
+                            print ('No blobs found for %s' % (b['build']))
 
                 else:
                     print('Blobs already exist at %s' % (save_path))
@@ -322,16 +356,18 @@ def main(passedArgs = None):
             for c in device['firmwares']:
                 save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, c['version'], c['build']))
 
-                if not os.path.exists(save_path) or args.overwrite_cydia or args.overwrite:
-                    #print 'Requesting beta blobs from Cydia for %s/%s' % (model, c['build'])
-                    r = request_blobs_from_cydia(board, c['build'], ecid, cpid, bdid)
+                if not os.path.exists(save_path) or args.overwrite:
+                    if args.verbose >= 1:
+                        print ('Requesting beta blobs from Cydia for %s/%s' % (model, c['build']))
+                    r = request_blobs_from_cydia(args.verbose, board, c['build'], ecid, cpid, bdid)
 
                     if r['MESSAGE'] == 'SUCCESS':
                         print('Cydia blobs saved to %s' % (save_path))
                         write_to_file(save_path, r['REQUEST_STRING'])
 
-                    #else:
-                        #print 'No blobs found for %s' % (c['build'])
+                    else:
+                        if args.verbose >= 1:
+                            print ('No blobs found for %s' % (c['build']))
 
                 else:
                     print('Blobs already exist at %s' % (save_path))
