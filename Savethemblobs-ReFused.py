@@ -163,6 +163,7 @@ def parse_args():
     parser.add_argument('--no-submit-cydia', help='don\'t submit blobs to Cydia server', action='store_true')
     parser.add_argument('--tsssaver-blobs', help='fetch shsh2 from 1Conan\'s TSSSaver (http://TSSSaver.1Conan.com)', action='store_true')
     parser.add_argument('--cydia-blobs', help='fetch blobs from Cydia server (32 bit devices only)', action='store_true')
+    parser.add_argument('--full-run', '-f', help='Query all available Servers for ALL known versions', action='store_true')
     return parser.parse_args()
 
 def main(passedArgs = None):
@@ -211,10 +212,10 @@ def main(passedArgs = None):
     bdid = d['bdid']
 
     if deviceIsViable:
-        if args.version == 'latest' or args.version == 'all':
+        if args.version == 'latest' or args.version == 'all' or args.full_run:
             print('Fetching %s firmwares for %s' % (args.version, args.device))
             for f in d['firmwares']:
-                if f['signed'] or args.version == 'all':
+                if f['signed'] or args.version == 'all' or args.full_run:
                     save_path = os.path.join(args.save_dir, '%s-%s-%s-%s.shsh' % (ecid, model, f['version'], f['buildid']))
 
                     if not os.path.exists(save_path) or args.overwrite_apple or args.overwrite:
@@ -268,7 +269,7 @@ def main(passedArgs = None):
         print('Your device is too new, Skipping SHSH requests from Apple (For now use tsschecker)')
 
 
-    if args.tsssaver_blobs:
+    if args.tsssaver_blobs or args.full_run:
         print('Fetching /u/1Conans TSS-SHSH2-Saver for %s with ECID %s' % (model, ecid))
         for f in d['firmwares']:
             # This helps reduce query-spam
@@ -280,7 +281,7 @@ def main(passedArgs = None):
     else:
         print('Skipped fetching blobs from /u/1Conan\'s TSSSaver')
 
-    if args.cydia_blobs and deviceIsViable:
+    if (args.cydia_blobs or args.full_run) and deviceIsViable:
         print('Fetching blobs available on Cydia server')
         g = firmwares(args.device)
         if not g:
